@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import uuid from 'react-native-uuid';
 
 import { STORAGE_KEYS, getItem, setItem } from '@/lib/storage';
@@ -13,17 +13,21 @@ type CreateTaskInput = {
 // Store compartido a nivel de módulo: misma fuente de verdad para la pantalla y los modales.
 let tasksState: Task[] = [];
 let tasksInitialized = false;
+let initPromise: Promise<void> | null = null;
 const tasksListeners = new Set<() => void>();
 
 function notifyTasks() {
   for (const l of tasksListeners) l();
 }
 
-async function initTasksIfNeeded() {
-  if (tasksInitialized) return;
-  tasksState = await getItem<Task[]>(STORAGE_KEYS.tasks, []);
-  tasksInitialized = true;
-  notifyTasks();
+function initTasksIfNeeded(): Promise<void> {
+  if (initPromise) return initPromise;
+  initPromise = (async () => {
+    tasksState = await getItem<Task[]>(STORAGE_KEYS.tasks, []);
+    tasksInitialized = true;
+    notifyTasks();
+  })();
+  return initPromise;
 }
 
 function persistTasks() {
@@ -69,29 +73,42 @@ export function getTaskById(id: string): Task | undefined {
   return tasksState.find((t) => t.id === id);
 }
 
+function subscribeTasks(cb: () => void) {
+  tasksListeners.add(cb);
+  return () => {
+    tasksListeners.delete(cb);
+  };
+}
+
+function getTasksSnapshot() {
+  return tasksState;
+}
+
 /**
- * Hook CRUD de tareas con persistencia en AsyncStorage. Comparte un único store entre
- * todos los consumidores para que un cambio hecho en el modal se refleje al volver a Tasks.
+ * Hook CRUD de tareas con persistencia en AsyncStorage.
+ *
+ * Se conecta al store compartido vía `useSyncExternalStore` (la primitiva oficial de React 18+
+ * para "external stores"). Garantiza que cualquier mutación —desde esta pantalla o desde un
+ * modal— se refleje inmediatamente en todos los componentes suscritos, sin depender de
+ * re-renders manuales.
  */
 export function useTasks() {
-  const [, setVersion] = useState(0);
+  const tasks = useSyncExternalStore(subscribeTasks, getTasksSnapshot);
   const [loading, setLoading] = useState(!tasksInitialized);
 
   useEffect(() => {
-    const listener = () => {
-      setVersion((v) => v + 1);
-      if (tasksInitialized) setLoading(false);
-    };
-    tasksListeners.add(listener);
-    if (!tasksInitialized) {
-      initTasksIfNeeded();
-    } else {
+    if (tasksInitialized) {
       setLoading(false);
+      return;
     }
+    let active = true;
+    initTasksIfNeeded().then(() => {
+      if (active) setLoading(false);
+    });
     return () => {
-      tasksListeners.delete(listener);
+      active = false;
     };
   }, []);
 
-  return { tasks: tasksState, loading, addTask, toggleTask, editTask, removeTask, getTaskById };
+  return { tasks, loading, addTask, toggleTask, editTask, removeTask, getTaskById };
 }
