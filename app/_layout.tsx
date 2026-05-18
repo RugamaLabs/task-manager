@@ -21,6 +21,7 @@ export default function RootLayout() {
           <Stack.Screen name="modals/add-task" options={{ presentation: 'modal' }} />
           <Stack.Screen name="modals/add-habit" options={{ presentation: 'modal' }} />
           <Stack.Screen name="modals/add-post" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="modals/add-event" options={{ presentation: 'modal' }} />
         </Stack>
         <StatusBar style="auto" />
       </ThemeProvider>
