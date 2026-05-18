@@ -1,25 +1,22 @@
-import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
-import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import {
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Alert, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import { Radius, Spacing } from '@/constants/theme';
 import { useColors } from '@/hooks/use-colors';
 import { usePosts } from '@/hooks/use-posts';
 import { Button } from '@/components/ui/button';
 import { ModalScreen } from '@/components/ui/modal-screen';
-import { MarkdownToolbar, type Selection } from '@/components/posts/markdown-toolbar';
-import { MarkdownView } from '@/components/posts/markdown-view';
+import { BlockEditor } from '@/components/posts/block-editor';
+import { CoverPicker } from '@/components/posts/cover-picker';
+import {
+  imageUrisFromBlocks,
+  makeBlock,
+  parseMarkdownToBlocks,
+  serializeBlocksToMarkdown,
+  type Block,
+} from '@/lib/blocks';
 import {
   copyPostMarkdownToClipboard,
   sharePostAsMarkdown,
@@ -35,59 +32,40 @@ export default function AddPostModal() {
   const isEdit = Boolean(editing);
 
   const [title, setTitle] = useState(editing?.title ?? '');
-  const [description, setDescription] = useState(editing?.description ?? '');
-  const [selection, setSelection] = useState<Selection>({ start: 0, end: 0 });
-  const [imageUri, setImageUri] = useState<string | undefined>(editing?.imageUri);
+  const [blocks, setBlocks] = useState<Block[]>(() =>
+    editing ? parseMarkdownToBlocks(editing.description) : [makeBlock('text')],
+  );
+  const [coverImageUri, setCoverImageUri] = useState<string | undefined>(editing?.coverImageUri);
 
-  const pickFromGallery = async () => {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) {
-      Alert.alert(
-        'Permiso requerido',
-        'Concede acceso a tu galería para elegir una imagen.',
-      );
-      return;
+  const imageUris = useMemo(() => imageUrisFromBlocks(blocks), [blocks]);
+
+  // Si la imagen seleccionada deja de existir en el cuerpo, limpiar la selección.
+  useMemo(() => {
+    if (coverImageUri && !imageUris.includes(coverImageUri)) {
+      setCoverImageUri(undefined);
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 0.8,
-    });
-    if (!result.canceled) setImageUri(result.assets[0].uri);
-  };
-
-  const takePhoto = async () => {
-    const perm = await ImagePicker.requestCameraPermissionsAsync();
-    if (!perm.granted) {
-      Alert.alert('Permiso requerido', 'Concede acceso a la cámara para tomar una foto.');
-      return;
-    }
-    const result = await ImagePicker.launchCameraAsync({ quality: 0.8 });
-    if (!result.canceled) setImageUri(result.assets[0].uri);
-  };
-
-  const promptImageSource = () => {
-    Alert.alert('Agregar imagen', '¿De dónde quieres tomarla?', [
-      { text: 'Cámara', onPress: takePhoto },
-      { text: 'Galería', onPress: pickFromGallery },
-      { text: 'Cancelar', style: 'cancel' },
-    ]);
-  };
+  }, [coverImageUri, imageUris]);
 
   const handleSave = () => {
     if (!title.trim()) {
       Alert.alert('Falta el título', 'Escribe un título para el post.');
       return;
     }
+    const description = serializeBlocksToMarkdown(blocks);
+    const cover = coverImageUri ?? imageUris[0];
     if (isEdit && editing) {
-      editPost(editing.id, { title: title.trim(), description, imageUri });
+      editPost(editing.id, { title: title.trim(), description, coverImageUri: cover });
     } else {
-      addPost({ title: title.trim(), description, imageUri });
+      addPost({ title: title.trim(), description, coverImageUri: cover });
     }
     if (router.canGoBack()) router.back();
   };
 
   const handleExport = () => {
-    const draft = { title: title.trim() || 'Sin título', description };
+    const draft = {
+      title: title.trim() || 'Sin título',
+      description: serializeBlocksToMarkdown(blocks),
+    };
     Alert.alert('Exportar post', '¿Cómo quieres exportarlo?', [
       {
         text: 'Compartir como .md',
@@ -110,94 +88,34 @@ export default function AddPostModal() {
 
   return (
     <ModalScreen title={isEdit ? 'Editar post' : 'Nuevo post'}>
-      <ScrollView
+      <KeyboardAwareScrollView
+        style={styles.flex}
         contentContainerStyle={styles.body}
-        keyboardShouldPersistTaps="handled">
-        <Text style={[styles.label, { color: colors.text }]}>Título</Text>
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        bottomOffset={20}>
         <TextInput
           value={title}
           onChangeText={setTitle}
-          placeholder="¿De qué trata este post?"
+          placeholder="Título"
           placeholderTextColor={colors.muted}
-          style={[
-            styles.input,
-            { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border },
-          ]}
+          style={[styles.titleInput, { color: colors.text }]}
           autoFocus={!isEdit}
         />
 
-        <Text style={[styles.label, { color: colors.text }]}>Imagen</Text>
-        {imageUri ? (
-          <View style={styles.imagePreviewWrap}>
-            <Image source={{ uri: imageUri }} style={styles.imagePreview} contentFit="cover" />
-            <View style={styles.imageActions}>
-              <Pressable
-                onPress={promptImageSource}
-                style={[styles.imageActionBtn, { backgroundColor: colors.surface }]}>
-                <Ionicons name="swap-horizontal" size={18} color={colors.text} />
-                <Text style={[styles.imageActionLabel, { color: colors.text }]}>Cambiar</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => setImageUri(undefined)}
-                style={[styles.imageActionBtn, { backgroundColor: colors.surface }]}>
-                <Ionicons name="trash-outline" size={18} color={colors.text} />
-                <Text style={[styles.imageActionLabel, { color: colors.text }]}>Quitar</Text>
-              </Pressable>
-            </View>
-          </View>
-        ) : (
-          <Pressable
-            onPress={promptImageSource}
-            style={[
-              styles.addImage,
-              { borderColor: colors.border, backgroundColor: colors.surface },
-            ]}>
-            <Ionicons name="image-outline" size={28} color={colors.muted} />
-            <Text style={[styles.addImageLabel, { color: colors.muted }]}>
-              Agregar imagen (cámara o galería)
-            </Text>
-          </Pressable>
-        )}
-
-        <Text style={[styles.label, { color: colors.text }]}>Contenido (Markdown)</Text>
-        <View style={[styles.editorWrap, { borderColor: colors.border }]}>
-          <MarkdownToolbar
-            value={description}
-            selection={selection}
-            onChange={({ value, selection: nextSel }) => {
-              setDescription(value);
-              setSelection(nextSel);
-            }}
-          />
-          <View style={[styles.toolbarDivider, { backgroundColor: colors.border }]} />
-          <TextInput
-            value={description}
-            onChangeText={setDescription}
-            onSelectionChange={(e) => setSelection(e.nativeEvent.selection)}
-            selection={selection}
-            placeholder={'Escribe aquí. Usa los botones de arriba para dar formato.\n\nPor ejemplo: # Mi título'}
-            placeholderTextColor={colors.muted}
-            multiline
-            textAlignVertical="top"
-            style={[styles.editorInput, { color: colors.text }]}
+        <View style={styles.coverSection}>
+          <Text style={[styles.sectionLabel, { color: colors.muted }]}>Portada</Text>
+          <CoverPicker
+            imageUris={imageUris}
+            selectedUri={coverImageUri}
+            onChange={setCoverImageUri}
           />
         </View>
 
-        <Text style={[styles.label, { color: colors.text }]}>Vista previa</Text>
-        <View
-          style={[
-            styles.preview,
-            { backgroundColor: colors.card, borderColor: colors.border },
-          ]}>
-          {description.trim() ? (
-            <MarkdownView source={description} />
-          ) : (
-            <Text style={{ color: colors.muted, fontStyle: 'italic' }}>
-              (sin contenido aún)
-            </Text>
-          )}
-        </View>
-      </ScrollView>
+        <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+        <BlockEditor blocks={blocks} onChange={setBlocks} />
+      </KeyboardAwareScrollView>
 
       <View style={styles.footer}>
         {isEdit && (
@@ -219,56 +137,21 @@ export default function AddPostModal() {
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   body: { paddingBottom: Spacing.lg, gap: Spacing.sm },
-  label: { fontSize: 14, fontWeight: '600', marginTop: Spacing.sm },
-  input: {
-    height: 48,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    paddingHorizontal: Spacing.md,
-    fontSize: 16,
-  },
-  addImage: {
-    height: 100,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.xs,
-  },
-  addImageLabel: { fontSize: 13 },
-  imagePreviewWrap: { gap: Spacing.sm },
-  imagePreview: { width: '100%', height: 180, borderRadius: Radius.md },
-  imageActions: { flexDirection: 'row', gap: Spacing.sm },
-  imageActionBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.xs,
+  titleInput: {
+    fontSize: 28,
+    fontWeight: '800',
     paddingVertical: Spacing.sm,
-    borderRadius: Radius.md,
   },
-  imageActionLabel: { fontSize: 14, fontWeight: '600' },
-  editorWrap: {
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    overflow: 'hidden',
+  coverSection: { gap: Spacing.xs },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
-  toolbarDivider: { height: StyleSheet.hairlineWidth },
-  editorInput: {
-    minHeight: 180,
-    padding: Spacing.md,
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  preview: {
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    padding: Spacing.md,
-    minHeight: 80,
-  },
+  divider: { height: 1, marginVertical: Spacing.sm, borderRadius: Radius.sm },
   footer: {
     flexDirection: 'row',
     gap: Spacing.sm,

@@ -6,6 +6,7 @@ import { Radius, Spacing } from '@/constants/theme';
 import { useColors } from '@/hooks/use-colors';
 import { Card } from '@/components/ui/card';
 import { MarkdownView } from '@/components/posts/markdown-view';
+import { resolveCoverImageUri } from '@/lib/blocks';
 import { formatShortDate } from '@/lib/date';
 import type { Post } from '@/lib/types';
 
@@ -28,6 +29,7 @@ function truncateMarkdown(input: string, limit: number): string {
 export function PostCard({ post, onLongPress }: Props) {
   const colors = useColors();
   const preview = truncateMarkdown(post.description, PREVIEW_CHAR_LIMIT);
+  const cover = resolveCoverImageUri(post);
 
   return (
     <Pressable
@@ -50,8 +52,8 @@ export function PostCard({ post, onLongPress }: Props) {
             </Text>
           </View>
         </View>
-        {post.imageUri ? (
-          <Image source={{ uri: post.imageUri }} style={styles.image} contentFit="cover" />
+        {cover ? (
+          <Image source={{ uri: cover }} style={styles.image} contentFit="cover" />
         ) : (
           <View style={[styles.placeholder, { backgroundColor: colors.surface }]}>
             <Ionicons name="image-outline" size={48} color={colors.muted} />

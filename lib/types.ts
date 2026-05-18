@@ -24,12 +24,17 @@ export type Habit = {
 export type Post = {
   id: string;
   title: string;
+  /** Markdown plano (h1/h2/h3, viñetas, código, imágenes embebidas `![](uri)`). */
   description: string;
-  /** URI local de la imagen (de expo-image-picker), opcional. */
+  /** URI de la imagen elegida como portada. Si está vacío, se usa la primera del cuerpo. */
+  coverImageUri?: string;
+  /** @deprecated Campo legacy de la Fase 5. Se migra a `coverImageUri` al hidratar. */
   imageUri?: string;
   createdAt: string; // ISO 8601
   updatedAt: string; // ISO 8601
 };
+
+export type PostViewMode = 'list' | 'card' | 'gallery';
 
 export type Event = {
   id: string;
@@ -47,4 +52,5 @@ export type ThemePreference = 'light' | 'dark' | 'system';
 
 export type Settings = {
   theme: ThemePreference;
+  postViewMode: PostViewMode;
 };

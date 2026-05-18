@@ -7,7 +7,7 @@ import type { Post } from '@/lib/types';
 type CreatePostInput = {
   title: string;
   description: string;
-  imageUri?: string;
+  coverImageUri?: string;
 };
 
 // Store compartido a nivel de módulo (mismo patrón validado en la Fase 3.1).
@@ -23,7 +23,23 @@ function notifyPosts() {
 function initPostsIfNeeded(): Promise<void> {
   if (initPromise) return initPromise;
   initPromise = (async () => {
-    postsState = await getItem<Post[]>(STORAGE_KEYS.posts, []);
+    const loaded = await getItem<Post[]>(STORAGE_KEYS.posts, []);
+    // Migración Fase 7: `imageUri` legacy → `coverImageUri`.
+    let migrated = false;
+    const next = loaded.map((p) => {
+      const legacyImageUri = (p as Post & { imageUri?: string }).imageUri;
+      if (legacyImageUri && !p.coverImageUri) {
+        migrated = true;
+        const { imageUri: _drop, ...rest } = p as Post & { imageUri?: string };
+        void _drop;
+        return { ...rest, coverImageUri: legacyImageUri } as Post;
+      }
+      return p;
+    });
+    postsState = next;
+    if (migrated) {
+      setItem(STORAGE_KEYS.posts, postsState);
+    }
     postsInitialized = true;
     notifyPosts();
   })();
@@ -34,7 +50,7 @@ function persistPosts() {
   setItem(STORAGE_KEYS.posts, postsState);
 }
 
-export function addPost({ title, description, imageUri }: CreatePostInput): Post | null {
+export function addPost({ title, description, coverImageUri }: CreatePostInput): Post | null {
   const trimmed = title.trim();
   if (!trimmed) return null;
   const now = new Date().toISOString();
@@ -42,7 +58,7 @@ export function addPost({ title, description, imageUri }: CreatePostInput): Post
     id: uuid.v4() as string,
     title: trimmed,
     description,
-    imageUri,
+    coverImageUri,
     createdAt: now,
     updatedAt: now,
   };
@@ -54,7 +70,7 @@ export function addPost({ title, description, imageUri }: CreatePostInput): Post
 
 export function editPost(
   id: string,
-  patch: Partial<Pick<Post, 'title' | 'description' | 'imageUri'>>,
+  patch: Partial<Pick<Post, 'title' | 'description' | 'coverImageUri'>>,
 ) {
   postsState = postsState.map((p) =>
     p.id === id ? { ...p, ...patch, updatedAt: new Date().toISOString() } : p,
