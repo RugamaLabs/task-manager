@@ -36,6 +36,9 @@ export type Post = {
 
 export type PostViewMode = 'list' | 'card' | 'gallery';
 
+/** Aspect ratio para las imágenes embebidas en la vista de lectura de un Post. */
+export type PostImageAspect = '16:9' | '4:3' | 'auto';
+
 export type Event = {
   id: string;
   title: string;
@@ -53,4 +56,5 @@ export type ThemePreference = 'light' | 'dark' | 'system';
 export type Settings = {
   theme: ThemePreference;
   postViewMode: PostViewMode;
+  postImageAspect: PostImageAspect;
 };

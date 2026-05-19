@@ -18,7 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { IconButton } from '@/components/ui/icon-button';
 import { ScreenHeader } from '@/components/ui/screen-header';
-import type { ThemePreference } from '@/lib/types';
+import type { PostImageAspect, ThemePreference } from '@/lib/types';
 
 const THEME_OPTIONS: { value: ThemePreference; label: string; description: string }[] = [
   { value: 'system', label: 'Sistema', description: 'Sigue la preferencia del dispositivo' },
@@ -26,11 +26,17 @@ const THEME_OPTIONS: { value: ThemePreference; label: string; description: strin
   { value: 'dark', label: 'Oscuro', description: 'Siempre en modo oscuro' },
 ];
 
+const ASPECT_OPTIONS: { value: PostImageAspect; label: string; description: string }[] = [
+  { value: '16:9', label: '16:9 (panorámica)', description: 'Ancha, ideal para paisajes' },
+  { value: '4:3', label: '4:3 (clásica)', description: 'Proporción tradicional de foto' },
+  { value: 'auto', label: 'Original', description: 'Mantiene la proporción real de cada imagen' },
+];
+
 export default function SettingsScreen() {
   const colors = useColors();
   const { categories, addCategory, removeCategory } = useCategories();
   const { tasks } = useTasks();
-  const { settings, setThemePreference } = useSettings();
+  const { settings, setThemePreference, setPostImageAspect } = useSettings();
   const [newCategoryName, setNewCategoryName] = useState('');
 
   const handleAdd = () => {
@@ -144,6 +150,50 @@ export default function SettingsScreen() {
             );
           })}
         </Card>
+
+        <Text
+          style={[
+            styles.subsectionTitle,
+            { color: colors.muted, marginTop: Spacing.lg },
+          ]}>
+          Imágenes en lectura
+        </Text>
+        <Card>
+          {ASPECT_OPTIONS.map((opt, idx) => {
+            const active = settings.postImageAspect === opt.value;
+            return (
+              <Pressable
+                key={opt.value}
+                onPress={() => setPostImageAspect(opt.value)}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: active }}
+                style={({ pressed }) => [
+                  styles.themeRow,
+                  idx > 0 && {
+                    borderTopColor: colors.border,
+                    borderTopWidth: StyleSheet.hairlineWidth,
+                  },
+                  pressed && { backgroundColor: colors.surface },
+                ]}>
+                <View style={styles.themeRowText}>
+                  <Text style={[styles.rowText, { color: colors.text }]}>{opt.label}</Text>
+                  <Text style={[styles.themeDescription, { color: colors.muted }]}>
+                    {opt.description}
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    styles.radio,
+                    { borderColor: active ? colors.primary : colors.border },
+                  ]}>
+                  {active && (
+                    <View style={[styles.radioDot, { backgroundColor: colors.primary }]} />
+                  )}
+                </View>
+              </Pressable>
+            );
+          })}
+        </Card>
       </ScrollView>
     </View>
   );
@@ -155,6 +205,13 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
+    marginBottom: Spacing.sm,
+  },
+  subsectionTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
     marginBottom: Spacing.sm,
   },
   addRow: {

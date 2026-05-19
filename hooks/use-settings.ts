@@ -1,11 +1,12 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 
 import { STORAGE_KEYS, getItem, setItem } from '@/lib/storage';
-import type { PostViewMode, Settings } from '@/lib/types';
+import type { PostImageAspect, PostViewMode, Settings } from '@/lib/types';
 
 const DEFAULT_SETTINGS: Settings = {
   theme: 'system',
   postViewMode: 'card',
+  postImageAspect: '16:9',
 };
 
 let settingsState: Settings = DEFAULT_SETTINGS;
@@ -44,6 +45,12 @@ export function setThemePreference(theme: Settings['theme']) {
   notifySettings();
 }
 
+export function setPostImageAspect(aspect: PostImageAspect) {
+  settingsState = { ...settingsState, postImageAspect: aspect };
+  persistSettings();
+  notifySettings();
+}
+
 function subscribeSettings(cb: () => void) {
   settingsListeners.add(cb);
   return () => {
@@ -77,5 +84,5 @@ export function useSettings() {
     };
   }, []);
 
-  return { settings, loading, setPostViewMode, setThemePreference };
+  return { settings, loading, setPostViewMode, setThemePreference, setPostImageAspect };
 }

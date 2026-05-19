@@ -27,6 +27,10 @@ function ThemedApp() {
         <Stack.Screen name="modals/add-habit" options={{ presentation: 'modal' }} />
         <Stack.Screen name="modals/add-post" options={{ presentation: 'modal' }} />
         <Stack.Screen name="modals/add-event" options={{ presentation: 'modal' }} />
+        <Stack.Screen
+          name="modals/image-viewer"
+          options={{ presentation: 'fullScreenModal', animation: 'fade' }}
+        />
         <Stack.Screen name="posts/[id]" />
       </Stack>
       <StatusBar style={effective === 'dark' ? 'light' : 'dark'} />

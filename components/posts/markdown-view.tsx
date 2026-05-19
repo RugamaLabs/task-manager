@@ -1,9 +1,21 @@
 import { useMemo } from 'react';
 import { Platform, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
-import Markdown from 'react-native-markdown-display';
+import Markdown, { MarkdownIt } from 'react-native-markdown-display';
 
 import { Radius, Spacing } from '@/constants/theme';
 import { useColors } from '@/hooks/use-colors';
+import { MarkdownImage } from '@/components/posts/markdown-image';
+
+/**
+ * markdown-it por defecto rechaza URIs `file:`, `javascript:`, `vbscript:` y `data:`
+ * (excepto `data:image/...`) en `validateLink`. Eso impide que `![](file:///…)` se
+ * parsee como nodo de imagen: queda como texto crudo. Inyectamos una instancia
+ * propia con `validateLink = () => true` para permitir las URIs locales de
+ * `expo-image-picker`. Es seguro porque las URIs vienen del propio dispositivo,
+ * nunca de input externo.
+ */
+const markdownItInstance = MarkdownIt({ typographer: true });
+markdownItInstance.validateLink = () => true;
 
 type Props = {
   /** Texto markdown a renderizar. */
@@ -83,7 +95,15 @@ export function MarkdownView({ source, style }: Props) {
   );
 
   return (
-    <Markdown style={markdownStyles} mergeStyle>
+    <Markdown
+      markdownit={markdownItInstance}
+      style={markdownStyles}
+      rules={{
+        image: (node) => (
+          <MarkdownImage key={node.key} uri={node.attributes.src as string} />
+        ),
+      }}
+      mergeStyle>
       {source}
     </Markdown>
   );
