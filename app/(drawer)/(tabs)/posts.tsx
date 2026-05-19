@@ -7,6 +7,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Text,
   View,
 } from 'react-native';
 
@@ -20,11 +21,8 @@ import { SearchBar } from '@/components/ui/search-bar';
 import { PostCard } from '@/components/posts/post-card';
 import { PostGalleryItem } from '@/components/posts/post-gallery-item';
 import { PostListRow } from '@/components/posts/post-list-row';
-import {
-  copyPostMarkdownToClipboard,
-  sharePostAsMarkdown,
-  stripMarkdown,
-} from '@/lib/markdown';
+import { formatDayHeader } from '@/lib/date';
+import { stripMarkdown } from '@/lib/markdown';
 import type { Post, PostViewMode } from '@/lib/types';
 
 const MODE_OPTIONS: { mode: PostViewMode; icon: React.ComponentProps<typeof Ionicons>['name']; label: string }[] = [
@@ -32,6 +30,27 @@ const MODE_OPTIONS: { mode: PostViewMode; icon: React.ComponentProps<typeof Ioni
   { mode: 'card', icon: 'newspaper-outline', label: 'Tarjeta' },
   { mode: 'gallery', icon: 'grid-outline', label: 'Galería' },
 ];
+
+/**
+ * Agrupa posts por día (`createdAt.slice(0,10)`).
+ * Dentro de cada día, orden descendente (más reciente arriba).
+ * Días ordenados descendente.
+ */
+function groupPostsByDay(posts: Post[]): { dayISO: string; posts: Post[] }[] {
+  const groups = new Map<string, Post[]>();
+  for (const p of posts) {
+    const day = p.createdAt.slice(0, 10);
+    const bucket = groups.get(day);
+    if (bucket) bucket.push(p);
+    else groups.set(day, [p]);
+  }
+  return Array.from(groups.entries())
+    .map(([dayISO, list]) => ({
+      dayISO,
+      posts: list.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    }))
+    .sort((a, b) => b.dayISO.localeCompare(a.dayISO));
+}
 
 export default function PostsScreen() {
   const colors = useColors();
@@ -51,67 +70,73 @@ export default function PostsScreen() {
     });
   }, [posts, query]);
 
+  const handleOpen = (post: Post) => {
+    router.push({ pathname: '/posts/[id]', params: { id: post.id } });
+  };
+
   const handleLongPress = (post: Post) => {
-    Alert.alert(post.title || 'Post', '¿Qué deseas hacer?', [
-      {
-        text: 'Editar',
-        onPress: () => router.push({ pathname: '/modals/add-post', params: { id: post.id } }),
-      },
-      {
-        text: 'Compartir como .md',
-        onPress: () => {
-          sharePostAsMarkdown(post).catch((error) => {
-            Alert.alert('Error al compartir', String(error?.message ?? error));
-          });
-        },
-      },
-      {
-        text: 'Copiar al portapapeles',
-        onPress: async () => {
-          await copyPostMarkdownToClipboard(post);
-          Alert.alert('Copiado', 'El markdown del post está en el portapapeles.');
-        },
-      },
+    Alert.alert(post.title || 'Post', '¿Eliminar este post?', [
+      { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Eliminar',
         style: 'destructive',
         onPress: () => removePost(post.id),
       },
-      { text: 'Cancelar', style: 'cancel' },
     ]);
   };
 
-  const renderBody = () => {
-    if (settings.postViewMode === 'list') {
-      return (
-        <ScrollView contentContainerStyle={styles.list} keyboardShouldPersistTaps="handled">
-          {filtered.map((p) => (
-            <PostListRow key={p.id} post={p} onLongPress={handleLongPress} />
-          ))}
-        </ScrollView>
-      );
-    }
-    if (settings.postViewMode === 'gallery') {
-      return (
-        <ScrollView contentContainerStyle={styles.list} keyboardShouldPersistTaps="handled">
-          <View style={styles.galleryGrid}>
-            {filtered.map((p) => (
-              <View key={p.id} style={styles.galleryCell}>
-                <PostGalleryItem post={p} onLongPress={handleLongPress} />
-              </View>
-            ))}
-          </View>
-        </ScrollView>
-      );
-    }
-    // Card (default)
+  const renderCardMode = () => {
+    const groups = groupPostsByDay(filtered);
     return (
       <ScrollView contentContainerStyle={styles.list} keyboardShouldPersistTaps="handled">
-        {filtered.map((p) => (
-          <PostCard key={p.id} post={p} onLongPress={handleLongPress} />
+        {groups.map((g) => (
+          <View key={g.dayISO} style={styles.daySection}>
+            <Text style={[styles.dayHeader, { color: colors.muted }]}>
+              {formatDayHeader(g.dayISO)}
+            </Text>
+            {g.posts.map((p) => (
+              <PostCard
+                key={p.id}
+                post={p}
+                onPress={handleOpen}
+                onLongPress={handleLongPress}
+              />
+            ))}
+          </View>
         ))}
       </ScrollView>
     );
+  };
+
+  const renderListMode = () => (
+    <ScrollView contentContainerStyle={styles.list} keyboardShouldPersistTaps="handled">
+      {filtered.map((p) => (
+        <PostListRow
+          key={p.id}
+          post={p}
+          onPress={handleOpen}
+          onLongPress={handleLongPress}
+        />
+      ))}
+    </ScrollView>
+  );
+
+  const renderGalleryMode = () => (
+    <ScrollView contentContainerStyle={styles.list} keyboardShouldPersistTaps="handled">
+      <View style={styles.galleryGrid}>
+        {filtered.map((p) => (
+          <View key={p.id} style={styles.galleryCell}>
+            <PostGalleryItem post={p} onPress={handleOpen} onLongPress={handleLongPress} />
+          </View>
+        ))}
+      </View>
+    </ScrollView>
+  );
+
+  const renderBody = () => {
+    if (settings.postViewMode === 'list') return renderListMode();
+    if (settings.postViewMode === 'gallery') return renderGalleryMode();
+    return renderCardMode();
   };
 
   return (
@@ -201,6 +226,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   list: { padding: Spacing.lg, paddingBottom: Spacing.xxl },
+  daySection: { marginBottom: Spacing.lg },
+  dayHeader: {
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: Spacing.sm,
+  },
   galleryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

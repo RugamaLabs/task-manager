@@ -10,16 +10,18 @@ import type { Post } from '@/lib/types';
 
 type Props = {
   post: Post;
+  onPress?: (post: Post) => void;
   onLongPress?: (post: Post) => void;
 };
 
 /** Fila compacta para el modo "Lista" de Posts. */
-export function PostListRow({ post, onLongPress }: Props) {
+export function PostListRow({ post, onPress, onLongPress }: Props) {
   const colors = useColors();
   const cover = resolveCoverImageUri(post);
 
   return (
     <Pressable
+      onPress={onPress ? () => onPress(post) : undefined}
       onLongPress={onLongPress ? () => onLongPress(post) : undefined}
       delayLongPress={350}
       style={({ pressed }) => [

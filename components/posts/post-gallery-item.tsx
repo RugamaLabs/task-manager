@@ -9,16 +9,18 @@ import type { Post } from '@/lib/types';
 
 type Props = {
   post: Post;
+  onPress?: (post: Post) => void;
   onLongPress?: (post: Post) => void;
 };
 
 /** Ítem cuadrado del modo "Galería": cover + título debajo. */
-export function PostGalleryItem({ post, onLongPress }: Props) {
+export function PostGalleryItem({ post, onPress, onLongPress }: Props) {
   const colors = useColors();
   const cover = resolveCoverImageUri(post);
 
   return (
     <Pressable
+      onPress={onPress ? () => onPress(post) : undefined}
       onLongPress={onLongPress ? () => onLongPress(post) : undefined}
       delayLongPress={350}
       style={({ pressed }) => [styles.wrap, pressed && { opacity: 0.7 }]}>

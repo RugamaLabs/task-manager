@@ -1,88 +1,76 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Radius, Spacing } from '@/constants/theme';
 import { useColors } from '@/hooks/use-colors';
 import { Card } from '@/components/ui/card';
-import { MarkdownView } from '@/components/posts/markdown-view';
 import { resolveCoverImageUri } from '@/lib/blocks';
-import { formatShortDate } from '@/lib/date';
+import { formatTimeOfDay } from '@/lib/date';
+import { stripMarkdown } from '@/lib/markdown';
 import type { Post } from '@/lib/types';
 
-const PREVIEW_CHAR_LIMIT = 180;
+const PREVIEW_LIMIT = 140;
+const THUMB = 96;
 
 type Props = {
   post: Post;
+  onPress?: (post: Post) => void;
   onLongPress?: (post: Post) => void;
 };
 
-function truncateMarkdown(input: string, limit: number): string {
-  if (input.length <= limit) return input;
-  // Corte sencillo: en el último espacio antes del límite para no romper palabras.
-  const slice = input.slice(0, limit);
+function truncate(s: string, n: number): string {
+  if (s.length <= n) return s;
+  const slice = s.slice(0, n);
   const lastSpace = slice.lastIndexOf(' ');
   return (lastSpace > 0 ? slice.slice(0, lastSpace) : slice) + '…';
 }
 
-/** Tarjeta de un post: título, descripción Markdown (truncada), fechas e imagen opcional. */
-export function PostCard({ post, onLongPress }: Props) {
+/**
+ * Card horizontal del modo "Tarjeta": hora arriba, título bold, preview en texto
+ * plano y thumbnail cuadrado de la portada a la derecha (si existe).
+ */
+export function PostCard({ post, onPress, onLongPress }: Props) {
   const colors = useColors();
-  const preview = truncateMarkdown(post.description, PREVIEW_CHAR_LIMIT);
   const cover = resolveCoverImageUri(post);
+  const preview = truncate(stripMarkdown(post.description), PREVIEW_LIMIT);
 
   return (
     <Pressable
+      onPress={onPress ? () => onPress(post) : undefined}
       onLongPress={onLongPress ? () => onLongPress(post) : undefined}
-      delayLongPress={350}>
-      <Card style={styles.card} padding={0}>
-        <View style={styles.body}>
-          <Text style={[styles.title, { color: colors.text }]} numberOfLines={2}>
-            {post.title}
-          </Text>
-          <View style={styles.preview} pointerEvents="none">
-            <MarkdownView source={preview} />
-          </View>
-          <View style={styles.dates}>
-            <Text style={[styles.dateText, { color: colors.muted }]}>
-              Creado: {formatShortDate(post.createdAt)}
+      delayLongPress={350}
+      style={({ pressed }) => [pressed && styles.pressed]}>
+      <Card style={styles.card}>
+        <View style={styles.row}>
+          <View style={styles.body}>
+            <Text style={[styles.time, { color: colors.text }]}>
+              {formatTimeOfDay(post.createdAt)}
             </Text>
-            <Text style={[styles.dateText, { color: colors.muted }]}>
-              Editado: {formatShortDate(post.updatedAt)}
+            <Text style={[styles.title, { color: colors.text }]} numberOfLines={2}>
+              {post.title}
             </Text>
+            {preview ? (
+              <Text style={[styles.preview, { color: colors.muted }]} numberOfLines={2}>
+                {preview}
+              </Text>
+            ) : null}
           </View>
+          {cover ? (
+            <Image source={{ uri: cover }} style={styles.thumb} contentFit="cover" />
+          ) : null}
         </View>
-        {cover ? (
-          <Image source={{ uri: cover }} style={styles.image} contentFit="cover" />
-        ) : (
-          <View style={[styles.placeholder, { backgroundColor: colors.surface }]}>
-            <Ionicons name="image-outline" size={48} color={colors.muted} />
-          </View>
-        )}
       </Card>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { marginBottom: Spacing.md, overflow: 'hidden' },
-  body: { padding: Spacing.lg },
-  title: { fontSize: 18, fontWeight: '700', marginBottom: Spacing.xs },
-  preview: { marginBottom: Spacing.sm, maxHeight: 90, overflow: 'hidden' },
-  dates: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md, marginTop: Spacing.xs },
-  dateText: { fontSize: 12 },
-  image: {
-    width: '100%',
-    height: 160,
-    borderBottomLeftRadius: Radius.lg,
-    borderBottomRightRadius: Radius.lg,
-  },
-  placeholder: {
-    width: '100%',
-    height: 120,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderBottomLeftRadius: Radius.lg,
-    borderBottomRightRadius: Radius.lg,
-  },
+  card: { marginBottom: Spacing.sm },
+  row: { flexDirection: 'row', gap: Spacing.md, alignItems: 'flex-start' },
+  body: { flex: 1, gap: Spacing.xs },
+  time: { fontSize: 14, fontWeight: '700' },
+  title: { fontSize: 17, fontWeight: '700', marginTop: Spacing.xs },
+  preview: { fontSize: 14, lineHeight: 20 },
+  thumb: { width: THUMB, height: THUMB, borderRadius: Radius.md },
+  pressed: { opacity: 0.7 },
 });
