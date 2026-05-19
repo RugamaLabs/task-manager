@@ -1,8 +1,15 @@
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useSettings } from '@/hooks/use-settings';
 
-/** Devuelve la paleta completa (`Colors.light` o `Colors.dark`) según el esquema activo. */
+/**
+ * Devuelve la paleta efectiva según la preferencia del usuario:
+ * - `light`/`dark`: fuerza ese tema.
+ * - `system` (default): usa lo que reporta el SO.
+ */
 export function useColors() {
-  const scheme = useColorScheme() ?? 'light';
-  return Colors[scheme];
+  const { settings } = useSettings();
+  const osScheme = useColorScheme() ?? 'light';
+  const effective = settings.theme === 'system' ? osScheme : settings.theme;
+  return Colors[effective];
 }

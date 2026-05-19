@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import {
   Alert,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,16 +12,25 @@ import {
 import { Radius, Spacing } from '@/constants/theme';
 import { useCategories } from '@/hooks/use-categories';
 import { useColors } from '@/hooks/use-colors';
+import { useSettings } from '@/hooks/use-settings';
 import { useTasks } from '@/hooks/use-tasks';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { IconButton } from '@/components/ui/icon-button';
 import { ScreenHeader } from '@/components/ui/screen-header';
+import type { ThemePreference } from '@/lib/types';
+
+const THEME_OPTIONS: { value: ThemePreference; label: string; description: string }[] = [
+  { value: 'system', label: 'Sistema', description: 'Sigue la preferencia del dispositivo' },
+  { value: 'light', label: 'Claro', description: 'Siempre en modo claro' },
+  { value: 'dark', label: 'Oscuro', description: 'Siempre en modo oscuro' },
+];
 
 export default function SettingsScreen() {
   const colors = useColors();
   const { categories, addCategory, removeCategory } = useCategories();
   const { tasks } = useTasks();
+  const { settings, setThemePreference } = useSettings();
   const [newCategoryName, setNewCategoryName] = useState('');
 
   const handleAdd = () => {
@@ -99,9 +109,40 @@ export default function SettingsScreen() {
           Apariencia
         </Text>
         <Card>
-          <Text style={[styles.empty, { color: colors.muted }]}>
-            El selector de tema se agrega en la Fase 7.
-          </Text>
+          {THEME_OPTIONS.map((opt, idx) => {
+            const active = settings.theme === opt.value;
+            return (
+              <Pressable
+                key={opt.value}
+                onPress={() => setThemePreference(opt.value)}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: active }}
+                style={({ pressed }) => [
+                  styles.themeRow,
+                  idx > 0 && {
+                    borderTopColor: colors.border,
+                    borderTopWidth: StyleSheet.hairlineWidth,
+                  },
+                  pressed && { backgroundColor: colors.surface },
+                ]}>
+                <View style={styles.themeRowText}>
+                  <Text style={[styles.rowText, { color: colors.text }]}>{opt.label}</Text>
+                  <Text style={[styles.themeDescription, { color: colors.muted }]}>
+                    {opt.description}
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    styles.radio,
+                    { borderColor: active ? colors.primary : colors.border },
+                  ]}>
+                  {active && (
+                    <View style={[styles.radioDot, { backgroundColor: colors.primary }]} />
+                  )}
+                </View>
+              </Pressable>
+            );
+          })}
         </Card>
       </ScrollView>
     </View>
@@ -140,4 +181,22 @@ const styles = StyleSheet.create({
   },
   rowText: { fontSize: 16 },
   empty: { fontSize: 14, paddingVertical: Spacing.sm },
+  themeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xs,
+  },
+  themeRowText: { flex: 1, gap: 2 },
+  themeDescription: { fontSize: 13 },
+  radio: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radioDot: { width: 10, height: 10, borderRadius: 5 },
 });
