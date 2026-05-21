@@ -8,8 +8,9 @@ import { Radius, Spacing } from '@/constants/theme';
 import { useColors } from '@/hooks/use-colors';
 import { usePosts } from '@/hooks/use-posts';
 import { IconButton } from '@/components/ui/icon-button';
+import { LocationChip } from '@/components/posts/location-chip';
 import { MarkdownView } from '@/components/posts/markdown-view';
-import { resolveCoverImageUri } from '@/lib/blocks';
+import { resolveCoverImageUri, resolvePostLocation } from '@/lib/blocks';
 import { formatShortDate } from '@/lib/date';
 import {
   copyPostMarkdownToClipboard,
@@ -39,6 +40,7 @@ export default function PostDetailScreen() {
   if (!post) return null;
 
   const cover = resolveCoverImageUri(post);
+  const location = resolvePostLocation(post);
 
   const handleEdit = () => {
     router.push({ pathname: '/modals/add-post', params: { id: post.id } });
@@ -117,6 +119,7 @@ export default function PostDetailScreen() {
         <Text style={[styles.dates, { color: colors.muted }]}>
           Creado: {formatShortDate(post.createdAt)} · Editado: {formatShortDate(post.updatedAt)}
         </Text>
+        {location ? <LocationChip name={location.name} style={styles.locationChip} /> : null}
         <View style={styles.divider} />
         <MarkdownView source={post.description} />
       </ScrollView>
@@ -147,5 +150,6 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 28, fontWeight: '800', lineHeight: 34 },
   dates: { fontSize: 13, marginBottom: Spacing.xs },
+  locationChip: { marginBottom: Spacing.xs },
   divider: { height: Spacing.xs },
 });

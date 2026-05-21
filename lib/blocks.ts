@@ -7,7 +7,13 @@
  */
 import uuid from 'react-native-uuid';
 
-export type BlockType = 'text' | 'h1' | 'h2' | 'h3' | 'bullet' | 'image';
+export type BlockType = 'text' | 'h1' | 'h2' | 'h3' | 'bullet' | 'image' | 'location';
+
+export type BlockLocation = {
+  name: string;
+  latitude: number;
+  longitude: number;
+};
 
 export type Block = {
   id: string;
@@ -16,6 +22,8 @@ export type Block = {
   content?: string;
   /** Solo para bloques de tipo `image`. */
   imageUri?: string;
+  /** Solo para bloques de tipo `location`. */
+  location?: BlockLocation;
 };
 
 /** Crea un bloque nuevo del tipo indicado. */
@@ -33,6 +41,7 @@ const RE_H2 = /^## (.*)$/;
 const RE_H3 = /^### (.*)$/;
 const RE_BULLET = /^- (.*)$/;
 const RE_IMAGE = /^!\[[^\]]*\]\((.+)\)$/;
+const RE_LOCATION = /^\[(.+)\]\(geo:(-?[\d.]+),(-?[\d.]+)\)$/;
 
 /**
  * Parsea un string Markdown a una lista de bloques.
@@ -75,6 +84,17 @@ export function parseMarkdownToBlocks(md: string): Block[] {
     } else if ((match = line.match(RE_IMAGE))) {
       flushText();
       blocks.push(makeBlock('image', { imageUri: match[1] }));
+    } else if ((match = line.match(RE_LOCATION))) {
+      flushText();
+      blocks.push(
+        makeBlock('location', {
+          location: {
+            name: match[1],
+            latitude: Number(match[2]),
+            longitude: Number(match[3]),
+          },
+        }),
+      );
     } else if ((match = line.match(RE_BULLET))) {
       flushText();
       blocks.push(makeBlock('bullet', { content: match[1] }));
@@ -105,6 +125,10 @@ export function serializeBlocksToMarkdown(blocks: Block[]): string {
         return `- ${b.content ?? ''}`;
       case 'image':
         return `![](${b.imageUri ?? ''})`;
+      case 'location':
+        return b.location
+          ? `[${b.location.name}](geo:${b.location.latitude},${b.location.longitude})`
+          : '';
       case 'text':
       default:
         return b.content ?? '';
@@ -142,4 +166,10 @@ export function resolveCoverImageUri(post: {
   if (post.coverImageUri) return post.coverImageUri;
   const embedded = imageUrisFromBlocks(parseMarkdownToBlocks(post.description));
   return embedded[0];
+}
+
+/** Devuelve la primera ubicación embebida en `description`, o `undefined`. */
+export function resolvePostLocation(post: { description: string }): BlockLocation | undefined {
+  const blocks = parseMarkdownToBlocks(post.description);
+  return blocks.find((b) => b.type === 'location')?.location;
 }

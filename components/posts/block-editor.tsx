@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -31,6 +32,7 @@ const TYPE_LABELS: Record<BlockType, string> = {
   h3: 'Encabezado 3',
   bullet: 'Lista',
   image: 'Imagen',
+  location: 'Ubicación',
 };
 
 const PLACEHOLDERS: Record<BlockType, string> = {
@@ -40,6 +42,7 @@ const PLACEHOLDERS: Record<BlockType, string> = {
   h3: 'Encabezado 3',
   bullet: 'Lista',
   image: '',
+  location: '',
 };
 
 function styleFor(type: BlockType): TextStyle {
@@ -204,6 +207,8 @@ export function BlockEditor({ blocks, onChange }: Props) {
               onReplace={() => replaceImage(b.id)}
               onRemove={() => removeBlock(b.id)}
             />
+          ) : b.type === 'location' ? (
+            <LocationBlockRow block={b} onRemove={() => removeBlock(b.id)} />
           ) : (
             <TextBlockRow
               block={b}
@@ -314,6 +319,25 @@ function ImageBlockRow({
   );
 }
 
+function LocationBlockRow({ block, onRemove }: { block: Block; onRemove: () => void }) {
+  const colors = useColors();
+  return (
+    <View style={[styles.locationChip, { backgroundColor: colors.surface }]}>
+      <Ionicons name="location" size={16} color={colors.primary} />
+      <Text style={[styles.locationText, { color: colors.text }]} numberOfLines={1}>
+        {block.location?.name ?? 'Ubicación'}
+      </Text>
+      <IconButton
+        name="close"
+        onPress={onRemove}
+        accessibilityLabel="Quitar ubicación"
+        size={16}
+        color={colors.muted}
+      />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     position: 'relative',
@@ -336,4 +360,17 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     alignItems: 'center',
   },
+  locationChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    paddingLeft: Spacing.md,
+    paddingRight: Spacing.xs,
+    paddingVertical: Spacing.xs,
+    borderRadius: Radius.pill,
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
+    marginVertical: Spacing.xs,
+  },
+  locationText: { flex: 1, fontSize: 14, fontWeight: '600' },
 });

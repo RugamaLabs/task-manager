@@ -4,7 +4,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Radius, Spacing } from '@/constants/theme';
 import { useColors } from '@/hooks/use-colors';
-import { resolveCoverImageUri } from '@/lib/blocks';
+import { LocationChip } from '@/components/posts/location-chip';
+import { resolveCoverImageUri, resolvePostLocation } from '@/lib/blocks';
 import { formatShortDate } from '@/lib/date';
 import type { Post } from '@/lib/types';
 
@@ -18,6 +19,7 @@ type Props = {
 export function PostListRow({ post, onPress, onLongPress }: Props) {
   const colors = useColors();
   const cover = resolveCoverImageUri(post);
+  const location = resolvePostLocation(post);
 
   return (
     <Pressable
@@ -43,6 +45,7 @@ export function PostListRow({ post, onPress, onLongPress }: Props) {
         <Text style={[styles.date, { color: colors.muted }]}>
           {formatShortDate(post.updatedAt)}
         </Text>
+        {location ? <LocationChip name={location.name} compact /> : null}
       </View>
     </Pressable>
   );

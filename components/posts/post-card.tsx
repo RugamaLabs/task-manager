@@ -4,7 +4,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Radius, Spacing } from '@/constants/theme';
 import { useColors } from '@/hooks/use-colors';
 import { Card } from '@/components/ui/card';
-import { resolveCoverImageUri } from '@/lib/blocks';
+import { LocationChip } from '@/components/posts/location-chip';
+import { resolveCoverImageUri, resolvePostLocation } from '@/lib/blocks';
 import { formatTimeOfDay } from '@/lib/date';
 import { stripMarkdown } from '@/lib/markdown';
 import type { Post } from '@/lib/types';
@@ -32,6 +33,7 @@ function truncate(s: string, n: number): string {
 export function PostCard({ post, onPress, onLongPress }: Props) {
   const colors = useColors();
   const cover = resolveCoverImageUri(post);
+  const location = resolvePostLocation(post);
   const preview = truncate(stripMarkdown(post.description), PREVIEW_LIMIT);
 
   return (
@@ -54,6 +56,7 @@ export function PostCard({ post, onPress, onLongPress }: Props) {
                 {preview}
               </Text>
             ) : null}
+            {location ? <LocationChip name={location.name} compact style={styles.location} /> : null}
           </View>
           {cover ? (
             <Image source={{ uri: cover }} style={styles.thumb} contentFit="cover" />
@@ -71,6 +74,7 @@ const styles = StyleSheet.create({
   time: { fontSize: 14, fontWeight: '700' },
   title: { fontSize: 17, fontWeight: '700', marginTop: Spacing.xs },
   preview: { fontSize: 14, lineHeight: 20 },
+  location: { marginTop: Spacing.xs },
   thumb: { width: THUMB, height: THUMB, borderRadius: Radius.md },
   pressed: { opacity: 0.7 },
 });

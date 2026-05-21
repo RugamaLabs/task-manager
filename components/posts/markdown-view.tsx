@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Platform, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
+import { Linking, Platform, Text, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 import Markdown, { MarkdownIt } from 'react-native-markdown-display';
 
 import { Radius, Spacing } from '@/constants/theme';
@@ -102,6 +102,20 @@ export function MarkdownView({ source, style }: Props) {
         image: (node) => (
           <MarkdownImage key={node.key} uri={node.attributes.src as string} />
         ),
+        // Los links `geo:` (bloques de ubicación) NO se renderizan inline:
+        // el chip de ubicación se muestra en el header de la vista de lectura.
+        link: (node, children) => {
+          const href = (node.attributes.href as string) ?? '';
+          if (href.startsWith('geo:')) return null;
+          return (
+            <Text
+              key={node.key}
+              style={{ color: colors.primary, textDecorationLine: 'underline' }}
+              onPress={() => Linking.openURL(href).catch(() => {})}>
+              {children}
+            </Text>
+          );
+        },
       }}
       mergeStyle>
       {source}

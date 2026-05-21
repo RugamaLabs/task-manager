@@ -4,6 +4,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { Radius, Spacing } from '@/constants/theme';
 import { useColors } from '@/hooks/use-colors';
 import { pickImageFromUser } from '@/lib/image-picker';
+import { capturePlace } from '@/lib/location';
 import { makeBlock, type Block, type BlockType } from '@/lib/blocks';
 
 type Props = {
@@ -27,6 +28,7 @@ const OPTIONS: Option[] = [
   { type: 'h3', label: 'Encabezado 3', icon: 'reader-outline' },
   { type: 'bullet', label: 'Lista con viñetas', icon: 'list-outline' },
   { type: 'image', label: 'Imagen', icon: 'image-outline' },
+  { type: 'location', label: 'Ubicación', icon: 'location-outline' },
 ];
 
 /**
@@ -41,6 +43,12 @@ export function BlockTypeMenu({ visible, height, onClose, onPick }: Props) {
     if (type === 'image') {
       const uri = await pickImageFromUser();
       if (uri) onPick(makeBlock('image', { imageUri: uri }));
+      else onClose();
+      return;
+    }
+    if (type === 'location') {
+      const place = await capturePlace();
+      if (place) onPick(makeBlock('location', { location: place }));
       else onClose();
       return;
     }
